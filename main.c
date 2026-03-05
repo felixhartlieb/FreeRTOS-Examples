@@ -1,8 +1,6 @@
 // FreeRTOS
 #include <FreeRTOS.h>
 #include <task.h>
-#include <queue.h>
-#include <semphr.h>
 
 // C
 #include <stdbool.h>
@@ -11,40 +9,21 @@
 
 // Pico SDK
 #include "pico/stdlib.h"
-#include "pico/rand.h"
 
-SemaphoreHandle_t sharedMutex;
+volatile uint32_t delay_value_ms = 1000;
 
-void lowTask(void *p) {
-    while (1)
-    {
-        xSemaphoreTake(sharedMutex, portMAX_DELAY);
-        printf("Low: holding mutex\n");
-        vTaskDelay(2000);   // simulate long work
-        printf("Low: releasing mutex\n");
-        xSemaphoreGive(sharedMutex);
-        vTaskDelay(1000);
-    }
-}
+void vHelloTask(void* unused_arg) {
 
-void mediumTask(void *p) {
-    while (1)
-    {
-        printf("Medium: running\n");
-        vTaskDelay(500);
-    }
-}
+    printf("Starting Hello Task...\n");
+    while (true) {
+        char buffer[100] = "This is the hello_task saying: Hello, world!\n";
+        
+        // Print character by character
+        for (int i = 0; i < 100 && buffer[i] != '\0'; i++) {
+            printf("%c", buffer[i]);
+        }
 
-void highTask(void *p) {
-    vTaskDelay(500); // let low grab mutex first
-
-    while (1)
-    {
-        printf("High: wants mutex\n");
-        xSemaphoreTake(sharedMutex, portMAX_DELAY);
-        printf("High: got mutex\n");
-        xSemaphoreGive(sharedMutex);
-        vTaskDelay(1000);
+        vTaskDelay(delay_value_ms);
     }
 }
 
@@ -58,16 +37,23 @@ void vApplicationMallocFailedHook() {
 
 int main() {
     stdio_init_all();
-
     sleep_ms(2000);
 
-    printf("Starting Inversion FreeRTOS Demo...\n");
+    printf("Starting Hello World FreeRTOS Demo...\n");
 
-    sharedMutex = xSemaphoreCreateMutex();
+    BaseType_t result = xTaskCreate(vHelloTask, "HELLO_TASK", 512, NULL, 1, NULL);
 
-    xTaskCreate(lowTask,    "Low",    256, NULL, 1, NULL);
-    xTaskCreate(mediumTask, "Medium", 256, NULL, 2, NULL);
-    xTaskCreate(highTask,   "High",   256, NULL, 3, NULL);
-
+    if (result != pdPASS) {
+        printf("Task creation FAILED!\n");
+        while (1);
+    } else {
+        printf("Task creation SUCCESS!\n");
+    }
+    
     vTaskStartScheduler();
+
+    while (true) {
+        printf("Running main..\n");
+        sleep_ms(2000);
+    }
 }
